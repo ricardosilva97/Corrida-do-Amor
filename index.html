@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrida do Amor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        
+        .game-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        canvas {
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            background: white;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .timer {
+            font-size: 20px;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .arrow-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 200px;
+            margin: 10px auto;
+        }
+        
+        .arrow-btn {
+            width: 60px;
+            height: 60px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+        
+        .arrow-btn:hover {
+            background: #e0e0e0;
+            transform: scale(1.1);
+        }
+        
+        .arrow-btn:active {
+            background: #d0d0d0;
+            transform: scale(0.95);
+        }
+        
+        .instructions {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            canvas {
+                width: 100% !important;
+                height: 300px !important;
+            }
+            
+            .arrow-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>💕 Corrida do Amor</h1>
+        <p class="subtitle">Mova o David até o Ricardo coletando corações!</p>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="controls">
+            <button class="btn" onclick="resetGame()">🔄 Reiniciar Jogo</button>
+            <div class="timer" id="timer">⏱️ Tempo: 120s</div>
+            
+            <div>
+                <p style="margin-bottom: 10px; color: #666;">Controles para iPhone:</p>
+                <div class="arrow-controls">
+                    <div></div>
+                    <button class="arrow-btn" 
+                            ontouchstart="handleTouch('ArrowUp', true)" 
+                            ontouchend="handleTouch('ArrowUp', false)"
+                            onmousedown="handleTouch('ArrowUp', true)" 
+                            onmouseup="handleTouch('ArrowUp', false)">↑</button>
+                    <div></div>
+                    <button class="arrow-btn" 
+                            ontouchstart="handleTouch('ArrowLeft', true)" 
+                            ontouchend="handleTouch('ArrowLeft', false)"
+                            onmousedown="handleTouch('ArrowLeft', true)" 
+                            onmouseup="handleTouch('ArrowLeft', false)">←</button>
+                    <button class="arrow-btn" 
+                            ontouchstart="handleTouch('ArrowDown', true)" 
+                            ontouchend="handleTouch('ArrowDown', false)"
+                            onmousedown="handleTouch('ArrowDown', true)" 
+                            onmouseup="handleTouch('ArrowDown', false)">↓</button>
+                    <button class="arrow-btn" 
+                            ontouchstart="handleTouch('ArrowRight', true)" 
+                            ontouchend="handleTouch('ArrowRight', false)"
+                            onmousedown="handleTouch('ArrowRight', true)" 
+                            onmouseup="handleTouch('ArrowRight', false)">→</button>
+                </div>
+                <p class="instructions">Ou use as setas do teclado / WASD</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        
+        let gameState = {
+            player: { x: 100, y: 450, bellySize: 1 },
+            ricardo: { x: 650, y: 450 },
+            hearts: [],
+            timeRemaining: 120,
+            gameStatus: 'playing',
+            startTime: Date.now(),
+            keys: new Set()
+        };
+        // Adjust canvas for mobile
+        function resizeCanvas() {
+            if (window.innerWidth < 600) {
+                canvas.style.width = '100%';
+                canvas.style.height = '300px';
+            } else {
+                canvas.style.width = '800px';
+                canvas.style.height = '600px';
+            }
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        function generateHeart() {
+            return {
+                x: Math.random() * (800 - 230) + 200,
+                y: Math.random() * (600 - 130) + 100
+            };
+        }
+        function initHearts() {
+            gameState.hearts = [];
+            for (let i = 0; i < 10; i++) {
+                gameState.hearts.push(generateHeart());
+            }
+        }
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + 30 &&
+                   rect1.x + 50 > rect2.x &&
+                   rect1.y < rect2.y + 30 &&
+                   rect1.y + 100 > rect2.y;
+        }
+        function drawPlayer(player) {
+            const { x, y, bellySize } = player;
+            
+            // Body
+            ctx.fillStyle = '#ffb6c1';
+            ctx.fillRect(x, y, 50, 100);
+            
+            // Belly
+            ctx.fillStyle = '#ffb6c1';
+            ctx.beginPath();
+            ctx.ellipse(x + 25, y + 60, 35 + bellySize * 5, 30, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Head
+            ctx.fillStyle = '#ffb6c1';
+            ctx.beginPath();
+            ctx.arc(x + 25, y - 25, 25, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x + 15, y - 35, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + 35, y - 35, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Pupils
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(x + 15, y - 35, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + 35, y - 35, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Mouth
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x + 25, y - 20, 10, 0, Math.PI);
+            ctx.stroke();
+            
+            // Name
+            ctx.fillStyle = '#000000';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('David', x + 25, y + 120);
+        }
+        function drawRicardo(ricardo) {
+            const { x, y } = ricardo;
+            
+            // Body
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(x, y, 50, 100);
+            
+            // Head
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(x + 25, y - 25, 25, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x + 15, y - 35, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + 35, y - 35, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Pupils
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(x + 15, y - 35, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + 35, y - 35, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Mouth
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x + 25, y - 20, 10, 0, Math.PI);
+            ctx.stroke();
+            
+            // Name
+            ctx.fillStyle = '#000000';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Ricardo', x + 25, y + 120);
+        }
+        function drawHeart(heart) {
+            const { x, y } = heart;
+            
+            ctx.fillStyle = '#ff0000';
+            
+            // Heart shape
+            ctx.beginPath();
+            ctx.moveTo(x + 15, y);
+            ctx.lineTo(x + 30, y + 15);
+            ctx.lineTo(x + 15, y + 30);
+            ctx.lineTo(x, y + 15);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Left circle
+            ctx.beginPath();
+            ctx.arc(x + 10, y + 10, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Right circle
+            ctx.beginPath();
+            ctx.arc(x + 20, y + 10, 10, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        function gameLoop() {
+            if (gameState.gameStatus === 'playing') {
+                // Update timer
+                const elapsed = (Date.now() - gameState.startTime) / 1000;
+                gameState.timeRemaining = Math.max(0, 120 - elapsed);
+                timerDisplay.textContent = `⏱️ Tempo: ${Math.ceil(gameState.timeRemaining)}s`;
+                
+                // Check time up
+                if (gameState.timeRemaining <= 0) {
+                    gameState.gameStatus = 'gameOver';
+                }
+                // Move player
+                const speed = 5;
+                if (gameState.keys.has('ArrowLeft') || gameState.keys.has('KeyA')) {
+                    gameState.player.x = Math.max(0, gameState.player.x - speed);
+                }
+                if (gameState.keys.has('ArrowRight') || gameState.keys.has('KeyD')) {
+                    gameState.player.x = Math.min(750, gameState.player.x + speed);
+                }
+                if (gameState.keys.has('ArrowUp') || gameState.keys.has('KeyW')) {
+                    gameState.player.y = Math.max(0, gameState.player.y - speed);
+                }
+                if (gameState.keys.has('ArrowDown') || gameState.keys.has('KeyS')) {
+                    gameState.player.y = Math.min(500, gameState.player.y + speed);
+                }
+                // Check heart collisions
+                for (let i = 0; i < gameState.hearts.length; i++) {
+                    if (checkCollision(gameState.player, gameState.hearts[i])) {
+                        gameState.hearts[i] = generateHeart();
+                        gameState.player.bellySize += 0.2;
+                    }
+                }
+                // Check if reached Ricardo
+                if (checkCollision(gameState.player, gameState.ricardo)) {
+                    gameState.gameStatus = 'victory';
+                }
+            }
+            // Clear canvas
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 800, 600);
+            // Draw everything
+            drawPlayer(gameState.player);
+            drawRicardo(gameState.ricardo);
+            gameState.hearts.forEach(heart => drawHeart(heart));
+            // Draw timer on canvas
+            ctx.fillStyle = '#000000';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Tempo: ${Math.ceil(gameState.timeRemaining)}s`, 10, 30);
+            // Draw messages
+            if (gameState.gameStatus === 'victory') {
+                // Soft gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, 600);
+                gradient.addColorStop(0, 'rgba(135, 206, 235, 0.9)');
+                gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.95)');
+                gradient.addColorStop(1, 'rgba(255, 182, 193, 0.9)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 800, 600);
+                
+                // Message box
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillRect(150, 200, 500, 200);
+                
+                ctx.strokeStyle = 'rgba(255, 192, 203, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(150, 200, 500, 200);
+                
+                // Text
+                ctx.fillStyle = '#2F4F4F';
+                ctx.font = '22px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Lembrete nº4: Se te voltasse a encontrar mil vezes,', 400, 260);
+                ctx.fillText('escolher-te-ia mil e uma!', 400, 300);
+                ctx.fillText('AMO-TE MEU AMOR!', 400, 340);
+            } else if (gameState.gameStatus === 'gameOver') {
+                const gradient = ctx.createRadialGradient(400, 300, 0, 400, 300, 400);
+                gradient.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+                gradient.addColorStop(1, 'rgba(139, 0, 0, 0.9)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 800, 600);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '32px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Tempo esgotado! Tente novamente.', 400, 300);
+            }
+            requestAnimationFrame(gameLoop);
+        }
+        function resetGame() {
+            gameState = {
+                player: { x: 100, y: 450, bellySize: 1 },
+                ricardo: { x: 650, y: 450 },
+                hearts: [],
+                timeRemaining: 120,
+                gameStatus: 'playing',
+                startTime: Date.now(),
+                keys: new Set()
+            };
+            initHearts();
+        }
+        // Touch and mouse controls
+        function handleTouch(direction, isPressed) {
+            if (isPressed) {
+                gameState.keys.add(direction);
+            } else {
+                gameState.keys.delete(direction);
+            }
+        }
+        // Keyboard controls
+        window.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            gameState.keys.add(e.code);
+        });
+        window.addEventListener('keyup', (e) => {
+            e.preventDefault();
+            gameState.keys.delete(e.code);
+        });
+        // Auto restart
+        setInterval(() => {
+            if (gameState.gameStatus === 'victory' || gameState.gameStatus === 'gameOver') {
+                setTimeout(resetGame, 3000);
+            }
+        }, 1000);
+        // Prevent scrolling on mobile
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+        // Initialize game
+        initHearts();
+        gameLoop();
+    </script>
+</body>
+</html>
